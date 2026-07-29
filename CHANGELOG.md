@@ -5,13 +5,13 @@ Este archivo documenta cambios y el estado actual de la API (endpoints y esquema
 Formato por entrada:
 
 - Fecha: YYYY-MM-DD
-- Autor: Jessica Catalán
+- Autor: autor
 - Versión: (opcional)
 - Endpoint(s) afectados: lista
 - Descripción corta: resumen
 - Detalles: parámetros, cuerpo, respuesta, notas de implementación
 
-## [Unreleased] - 2026-07-29
+## [Unreleased] - 2026-07-29 Jessica Catalán
 
 ### Added
 - Implementado endpoint `POST /posts` para la creación de publicaciones.
