@@ -9,9 +9,11 @@ from blog.schemas import (
     PostCreateIn,
     PostCreateOut,
     PostDetailOut,
-    PostListOut,
     UserDetailOut,
+    PostListResponse
 )
+from django.db.models import F, Prefetch
+from django.db.models import Count
 
 router = Router()
 
@@ -38,51 +40,111 @@ def _serialize_post_list(post: Post) -> dict:
         "created_at": post.created_at,
     }
 
+@router.get("/posts", response=PostListResponse)
+def list_posts(request, page: int = 1, page_size: int = 50):
+    page_size = min(page_size, 100)
 
-@router.get("/posts", response=list[PostListOut])
-def list_posts(request):
-    posts = Post.objects.filter(is_published=True).order_by("-created_at")
-    return [_serialize_post_list(p) for p in posts]
+    queryset = (
+        Post.objects
+        .filter(is_published=True)
+        .select_related("author")
+        .prefetch_related("tags")
+        .order_by("-created_at")
+    )
+
+    total = queryset.count()
+
+    posts = queryset[(page - 1) * page_size : page * page_size]
+
+    return {
+        "count": total,
+        "page": page,
+        "page_size": page_size,
+        "results": [_serialize_post_list(p) for p in posts],
+    }
+
+@router.get("/posts/search", response=PostListResponse)
+def search_posts(request, q: str, page: int = 1, page_size: int = 50):
+    page_size = min(page_size, 100)
+
+    queryset = (
+        Post.objects
+        .filter(
+            Q(title__icontains=q) | Q(body__icontains=q),
+            is_published=True,
+        )
+        .select_related("author")
+        .prefetch_related("tags")
+        .order_by("-created_at")
+    )
+
+    total = queryset.count()
+
+    posts = queryset[(page - 1) * page_size : page * page_size]
+
+    return {
+        "count": total,
+        "page": page,
+        "page_size": page_size,
+        "results": [_serialize_post_list(p) for p in posts],
+    }
 
 
-@router.get("/posts/search", response=list[PostListOut])
-def search_posts(request, q: str):
-    posts = Post.objects.filter(
-        Q(title__icontains=q) | Q(body__icontains=q),
-        is_published=True,
-    ).order_by("-created_at")
-    return [_serialize_post_list(p) for p in posts]
+@router.get("/posts/by-tag/{slug}", response=PostListResponse)
+def posts_by_tag(request, slug: str, page: int = 1, page_size: int = 50):
+    page_size = min(page_size, 100)
 
-
-@router.get("/posts/by-tag/{slug}", response=list[PostListOut])
-def posts_by_tag(request, slug: str):
     tag = get_object_or_404(Tag, slug=slug)
-    posts = tag.posts.filter(is_published=True).order_by("-created_at")
-    return [_serialize_post_list(p) for p in posts]
 
+    queryset = (
+        tag.posts
+        .filter(is_published=True)
+        .select_related("author")
+        .prefetch_related("tags")
+        .order_by("-created_at")
+    )
+
+    total = queryset.count()
+
+    posts = queryset[(page - 1) * page_size : page * page_size]
+
+    return {
+        "count": total,
+        "page": page,
+        "page_size": page_size,
+        "results": [_serialize_post_list(p) for p in posts],
+    }
 
 @router.get("/posts/{post_id}", response=PostDetailOut)
 def get_post(request, post_id: int):
-    post = get_object_or_404(Post, id=post_id)
-    post.view_count += 1
-    post.save()
+    Post.objects.filter(id=post_id).update(view_count=F("view_count") + 1)
 
-    comments = [
-        {
-            "id": c.id,
-            "author": _serialize_author(c.author),
-            "body": c.body,
-            "created_at": c.created_at,
-        }
-        for c in post.comments.order_by("created_at")
-    ]
+    post = get_object_or_404(
+        Post.objects.select_related("author").prefetch_related(
+            "tags",
+            Prefetch(
+                "comments",
+                queryset=Comment.objects.select_related("author").order_by("created_at"),
+            ),
+        ),
+        id=post_id,
+    )
+
     return {
         "id": post.id,
         "title": post.title,
         "body": post.body,
         "author": _serialize_author(post.author),
         "tags": [_serialize_tag(t) for t in post.tags.all()],
-        "comments": comments,
+        "comments": [
+            {
+                "id": c.id,
+                "author": _serialize_author(c.author),
+                "body": c.body,
+                "created_at": c.created_at,
+            }
+            for c in post.comments.all()
+        ],
         "view_count": post.view_count,
         "created_at": post.created_at,
         "updated_at": post.updated_at,
@@ -97,9 +159,13 @@ def create_post(request, payload: PostCreateIn):
         title=payload.title,
         body=payload.body,
     )
-    for slug in payload.tag_slugs:
+    """for slug in payload.tag_slugs:
         tag = Tag.objects.get(slug=slug)
-        post.tags.add(tag)
+        post.tags.add(tag)"""
+
+    tags = list(Tag.objects.filter(slug__in=payload.tag_slugs)) 
+    print(f"Tags: {tags}")
+    post.tags.add(*tags)
     return {"id": post.id, "title": post.title}
 
 
@@ -119,7 +185,13 @@ def find_user_by_email(request, email: str):
 
 @router.get("/users/{user_id}", response=UserDetailOut)
 def get_user(request, user_id: int):
-    user = get_object_or_404(User, id=user_id)
+    user = get_object_or_404(
+        User.objects.annotate(
+            post_count=Count("posts"),
+            comment_count=Count("comments"),
+        ),
+        id=user_id,
+    )
     return _user_detail(user)
 
 
@@ -130,6 +202,6 @@ def _user_detail(user: User) -> dict:
         "display_name": user.display_name,
         "email": user.email,
         "bio": user.bio,
-        "post_count": user.posts.count(),
-        "comment_count": user.comments.count(),
+        "post_count": user.post_count,
+        "comment_count": user.comment_count,
     }

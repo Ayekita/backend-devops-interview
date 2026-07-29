@@ -4,7 +4,7 @@ from django.utils import timezone
 
 class User(models.Model):
     username = models.CharField(max_length=64, unique=True)
-    email = models.CharField(max_length=255)
+    email = models.EmailField(max_length=255, db_index=True)
     display_name = models.CharField(max_length=128)
     bio = models.TextField(blank=True)
     created_at = models.DateTimeField(default=timezone.now)
@@ -34,6 +34,11 @@ class Post(models.Model):
 
     def __str__(self) -> str:
         return self.title
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["is_published", "-created_at"]),
+        ]
 
 
 class Comment(models.Model):

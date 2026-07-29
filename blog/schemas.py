@@ -72,3 +72,10 @@ class CommentCreateIn(Schema):
 
 class CommentCreateOut(Schema):
     id: int
+
+
+class PostListResponse(Schema):
+    count: int
+    page: int
+    page_size: int
+    results: list[PostListOut]

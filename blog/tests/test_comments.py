@@ -14,15 +14,53 @@ def client():
 @pytest.mark.django_db
 def test_create_comment(client):
     user = User.objects.create(
-        username="bob", email="bob@example.com", display_name="Bob"
+        username="bob",
+        email="bob@example.com",
+        display_name="Bob",
     )
-    post = Post.objects.create(author=user, title="T", body="B")
+
+    post = Post.objects.create(
+        author=user,
+        title="T",
+        body="B",
+    )
 
     response = client.post(
         f"/api/posts/{post.id}/comments",
-        data=json.dumps({"author_id": user.id, "body": "Nice post!"}),
+        data=json.dumps(
+            {
+                "author_id": user.id,
+                "body": "Nice post!",
+            }
+        ),
         content_type="application/json",
     )
 
     assert response.status_code == 200
-    assert Comment.objects.filter(post=post, body="Nice post!").exists()
+
+    comment = Comment.objects.get(post=post)
+
+    assert comment.author == user
+    assert comment.body == "Nice post!"
+    assert comment.post == post
+
+@pytest.mark.django_db
+def test_create_comment_invalid_post(client):
+    user = User.objects.create(
+        username="bob",
+        email="bob@example.com",
+        display_name="Bob",
+    )
+
+    response = client.post(
+        "/api/posts/999/comments",
+        data=json.dumps(
+            {
+                "author_id": user.id,
+                "body": "Nice post!",
+            }
+        ),
+        content_type="application/json",
+    )
+
+    assert response.status_code == 404
