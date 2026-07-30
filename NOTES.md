@@ -8,20 +8,13 @@ Identifiqué un problema de consultas N+1 al obtener publicaciones junto con sus
 
 Estas mejoras reducen la cantidad de consultas ejecutadas por el ORM y hacen que los endpoints sean más eficientes y escalables.
 
+Incremento automático del contador de visualizaciones (view_count) al consultar el detalle de una publicación.
+
 ### 2. Optimización de la base de datos
 
 Analicé el plan de ejecución de PostgreSQL utilizando `EXPLAIN ANALYZE` y detecté que el listado principal realizaba un recorrido secuencial sobre la tabla `post`. Para optimizar esta consulta agregué un índice compuesto sobre los campos `is_published` y `created_at`, permitiendo que PostgreSQL aproveche el índice durante la búsqueda y ordenamiento.
 
-### 3. Implementación de nuevos endpoints
-
-Se implementaron los endpoints necesarios para completar la funcionalidad del servicio:
-
-- Creación de publicaciones (`POST /posts`).
-- Obtención del detalle de una publicación (`GET /posts/{post_id}`).
-- Asociación de etiquetas mediante `tag_slugs`.
-- Incremento automático del contador de visualizaciones (`view_count`) al consultar el detalle de una publicación.
-
-### 4. Incorporación de pruebas automatizadas
+### 3. Incorporación de pruebas automatizadas
 
 Agregué y actualicé pruebas para validar el funcionamiento de los principales endpoints de la API, incluyendo:
 
@@ -30,7 +23,6 @@ Agregué y actualicé pruebas para validar el funcionamiento de los principales 
 - Filtrado por etiquetas.
 - Creación de publicaciones.
 - Creación de comentarios.
-- Consulta de usuarios.
 
 Esto permitió validar que los cambios realizados no introdujeran regresiones y mejorar la confiabilidad del proyecto.
 
@@ -91,4 +83,4 @@ Utilicé herramientas de IA como apoyo para analizar alternativas, revisar códi
 
 Todas las decisiones técnicas, optimizaciones y cambios incorporados fueron revisados, adaptados y validados manualmente antes de formar parte de la solución final.
 
-https://chatgpt.com/share/6a6ab2bb-41b0-83e9-902d-fddb86ad8e1a
+https://chatgpt.com/g/g-p-6a6abcda0e888191859904c93bf0b322-prueba/project
