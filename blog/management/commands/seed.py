@@ -16,7 +16,7 @@ NUM_COMMENTS = 500_000
 TAGS_PER_POST_AVG = 3
 TITLE_POOL_SIZE = 10_000
 BODY_POOL_SIZE = 10_000
-BATCH = 1000
+BATCH = 5000
 
 
 class Command(BaseCommand):
@@ -50,8 +50,7 @@ class Command(BaseCommand):
         ]
         with transaction.atomic():
             User.objects.bulk_create(users, batch_size=BATCH)
-        users = list(User.objects.all().only("id"))
-        user_ids = [u.id for u in users]
+        user_ids = list(User.objects.values_list("id", flat=True))
 
         self.stdout.write("Seeding tags...")
         hot_slugs = ["python", "django", "postgres", "devops", "sre"]
@@ -61,14 +60,29 @@ class Command(BaseCommand):
             tag_objs.append(Tag(name=word.title(), slug=slugify(word), created_at=now))
         with transaction.atomic():
             Tag.objects.bulk_create(tag_objs, batch_size=BATCH)
-        tags = list(Tag.objects.all().only("id", "slug"))
-        hot_tag_ids = [t.id for t in tags if t.slug in hot_slugs]
-        cold_tag_ids = [t.id for t in tags if t.slug not in hot_slugs]
+
+        tags = list(Tag.objects.values("id", "slug"))
+        hot_tag_ids = [t["id"] for t in tags if t["slug"] in hot_slugs]
+        cold_tag_ids = [t["id"] for t in tags if t["slug"] not in hot_slugs]
 
         title_pool = [fake.sentence(nb_words=8).rstrip(".") for _ in range(TITLE_POOL_SIZE)]
         body_pool = [fake.text(max_nb_chars=600) for _ in range(BODY_POOL_SIZE)]
 
+        COMMENT_POOL_SIZE = 10_000
+
+        comment_pool = [
+            fake.sentence(nb_words=random.randint(5, 30))
+            for _ in range(COMMENT_POOL_SIZE)
+        ]
+
         author_weights = _power_law_weights(len(user_ids), top_n=10, top_share=0.3)
+        author_pool = random.choices(
+            user_ids,
+            weights=author_weights,
+            k=1_000_000,
+        )
+
+        author_index = 0
 
         self.stdout.write(f"Seeding {NUM_POSTS} posts...")
         recent_days = 180
@@ -81,7 +95,11 @@ class Command(BaseCommand):
                         ts = _random_time(recency_cutoff, now)
                     else:
                         ts = _random_time(three_years_ago, now)
-                    author_id = random.choices(user_ids, weights=author_weights, k=1)[0]
+                    if author_index >= len(author_pool):
+                        author_index = 0
+
+                    author_id = author_pool[author_index]
+                    author_index += 1
                     chunk.append(
                         Post(
                             author_id=author_id,
@@ -119,20 +137,44 @@ class Command(BaseCommand):
 
         self.stdout.write(f"Seeding {NUM_COMMENTS} comments...")
         post_weights = _long_tail_weights(len(post_ids), top_pct=0.01, top_share=0.5)
-        for chunk_start in range(0, NUM_COMMENTS, BATCH):
-            chunk = []
-            for _ in range(chunk_start, min(chunk_start + BATCH, NUM_COMMENTS)):
-                pid = random.choices(post_ids, weights=post_weights, k=1)[0]
-                aid = random.choices(user_ids, weights=author_weights, k=1)[0]
-                chunk.append(
-                    Comment(
-                        post_id=pid,
-                        author_id=aid,
-                        body=fake.sentence(nb_words=random.randint(5, 30)),
-                        created_at=_random_time(three_years_ago, now),
+        post_pool = random.choices(
+            post_ids,
+            weights=post_weights,
+            k=1_000_000,
+        )
+
+        author_pool = random.choices(
+            user_ids,
+            weights=author_weights,
+            k=1_000_000,
+        )
+
+        post_index = 0
+        author_index = 0
+        with transaction.atomic():
+            for chunk_start in range(0, NUM_COMMENTS, BATCH):
+                chunk = []
+                for _ in range(chunk_start, min(chunk_start + BATCH, NUM_COMMENTS)):
+                    if post_index >= len(post_pool):
+                        post_index = 0
+
+                    if author_index >= len(author_pool):
+                        author_index = 0
+
+                    pid = post_pool[post_index]
+                    aid = author_pool[author_index]
+
+                    post_index += 1
+                    author_index += 1
+                    chunk.append(
+                        Comment(
+                            post_id=pid,
+                            author_id=aid,
+                            body=random.choice(comment_pool),
+                            created_at=_random_time(three_years_ago, now),
+                        )
                     )
-                )
-            Comment.objects.bulk_create(chunk, batch_size=BATCH)
+                Comment.objects.bulk_create(chunk, batch_size=BATCH)
 
         self.stdout.write(self.style.SUCCESS("Done."))
 

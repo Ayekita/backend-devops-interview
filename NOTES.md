@@ -67,8 +67,26 @@ Si dispusiera de un día adicional, me enfocaría en:
 - Ampliar la cobertura de pruebas con casos límite y pruebas de rendimiento.
 - Agregar logging estructurado y métricas para facilitar el monitoreo de la aplicación.
 
+---
+
 ## Uso de IA
 
 Utilicé herramientas de IA como apoyo para analizar alternativas, revisar código y acelerar algunas tareas de implementación y documentación.
 
 Todas las decisiones técnicas, optimizaciones y cambios incorporados fueron revisados, adaptados y validados manualmente antes de formar parte de la solución final.
+
+---
+
+## Optimización del Seed
+
+Se realizaron mejoras al proceso de generación de datos para reducir el tiempo de ejecución y el consumo de recursos, manteniendo una implementación simple basada en el ORM de Django.
+
+### Mejoras implementadas
+
+- Se aumentó el tamaño de los lotes (`bulk_create`) de **1.000** a **5.000** registros para reducir la cantidad de operaciones de inserción en la base de datos.
+- Se reutilizaron datos generados con **Faker** mediante pools de títulos, cuerpos de publicaciones y comentarios, evitando generar contenido nuevo para cada registro.
+- Se optimizó la obtención de identificadores utilizando `values_list()`, reduciendo el uso de memoria al evitar cargar objetos completos del ORM.
+- Se agruparon las inserciones masivas dentro de transacciones (`transaction.atomic()`), disminuyendo el costo asociado a múltiples confirmaciones de escritura.
+- Se redujo el número de consultas innecesarias durante el proceso de generación de datos.
+
+Estas optimizaciones permiten generar grandes volúmenes de información (100.000 publicaciones y 500.000 comentarios) de forma considerablemente más eficiente, sin sacrificar la legibilidad ni la mantenibilidad del código.
