@@ -10,7 +10,7 @@ Estas mejoras reducen la cantidad de consultas ejecutadas por el ORM y hacen que
 
 ### 2. Optimización de la base de datos
 
-Analicé el plan de ejecución de PostgreSQL utilizando `EXPLAIN ANALYZE` y detecté que el listado principal realizaba un recorrido secuencial sobre la tabla de publicaciones. Para optimizar esta consulta agregué un índice compuesto sobre los campos `is_published` y `created_at`, permitiendo que PostgreSQL aproveche el índice durante la búsqueda y ordenamiento.
+Analicé el plan de ejecución de PostgreSQL utilizando `EXPLAIN ANALYZE` y detecté que el listado principal realizaba un recorrido secuencial sobre la tabla `post`. Para optimizar esta consulta agregué un índice compuesto sobre los campos `is_published` y `created_at`, permitiendo que PostgreSQL aproveche el índice durante la búsqueda y ordenamiento.
 
 ### 3. Implementación de nuevos endpoints
 
@@ -69,14 +69,6 @@ Si dispusiera de un día adicional, me enfocaría en:
 
 ---
 
-## Uso de IA
-
-Utilicé herramientas de IA como apoyo para analizar alternativas, revisar código y acelerar algunas tareas de implementación y documentación.
-
-Todas las decisiones técnicas, optimizaciones y cambios incorporados fueron revisados, adaptados y validados manualmente antes de formar parte de la solución final.
-
----
-
 ## Optimización del Seed
 
 Se realizaron mejoras al proceso de generación de datos para reducir el tiempo de ejecución y el consumo de recursos, manteniendo una implementación simple basada en el ORM de Django.
@@ -90,3 +82,13 @@ Se realizaron mejoras al proceso de generación de datos para reducir el tiempo 
 - Se redujo el número de consultas innecesarias durante el proceso de generación de datos.
 
 Estas optimizaciones permiten generar grandes volúmenes de información (100.000 publicaciones y 500.000 comentarios) de forma considerablemente más eficiente, sin sacrificar la legibilidad ni la mantenibilidad del código.
+
+---
+
+## Uso de IA
+
+Utilicé herramientas de IA como apoyo para analizar alternativas, revisar código y acelerar algunas tareas de implementación y documentación.
+
+Todas las decisiones técnicas, optimizaciones y cambios incorporados fueron revisados, adaptados y validados manualmente antes de formar parte de la solución final.
+
+https://chatgpt.com/share/6a6ab2bb-41b0-83e9-902d-fddb86ad8e1a
